@@ -99,6 +99,35 @@ function getTransactions(accessToken, accountNumber, apiServer) {
   return allActivities;
 }
 
+function importPositions() {
+  const refreshToken = PropertiesService.getScriptProperties().getProperty('refresh_token');
+  const apiServer = PropertiesService.getScriptProperties().getProperty('api_server');
+  const accessToken = getAccessToken(refreshToken);
+  const accounts = getAccounts(accessToken, apiServer);
+  const positionsSheetName = 'Positions';
+  
+  for (const account of accounts) {
+    const accountNumber = account.number;
+    const positions = getPositions(accessToken, accountNumber, apiServer);
+    
+    writeToSheet(positionsSheetName, positions, false);
+  }
+}
+
+function getPositions(accessToken, accountNumber, apiServer) {
+  const response = UrlFetchApp.fetch(apiServer + 'v1/accounts/' + accountNumber + '/positions', {
+    headers: {
+      Authorization: 'Bearer ' + accessToken,
+    },
+  });
+
+  const data = JSON.parse(response.getContentText());
+  return data.positions.map(position => {
+    position.accountNumber = accountNumber;
+    return position;
+  });
+}
+
 function getBalances(accessToken, accountNumber, apiServer) {
   const response = UrlFetchApp.fetch(apiServer + 'v1/accounts/' + accountNumber + '/balances', {
     headers: {
@@ -128,38 +157,40 @@ function importTransactions() {
   }
 }
 
-function writeToSheet(sheetName, data, clearContents = true) {
+function writeToSheet(sheetName, data, clearContents = true, includeTimestamp = false) {
   if (!data || data.length === 0) {
     return;
   }
   
   const sheet = getSheet(sheetName);
   
-  // Assumes the first object in the data array represents the structure for all objects.
   const headers = Object.keys(data[0]);
   
-  // Add headers only if the sheet is empty.
   if (sheet.getLastRow() === 0) {
-    // Clear the sheet's contents only if clearContents is true.
     if (clearContents) {
       sheet.clearContents();
     }
     
+    if (includeTimestamp) {
+      headers.push('Timestamp');
+    }
+    
     sheet.appendRow(headers);
   }
+  
+  const timestamp = new Date();
   
   for (const item of data) {
     const row = [];
     for (const header of headers) {
       row.push(item[header]);
     }
+    if (includeTimestamp) {
+      row.push(timestamp);
+    }
     sheet.appendRow(row);
   }
 }
-
-
-
-
 
 function getSheet(sheetName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
