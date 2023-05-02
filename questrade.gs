@@ -59,11 +59,18 @@ function updateBalances() {
   const apiServer = PropertiesService.getScriptProperties().getProperty('api_server');
   const accessToken = getAccessToken(refreshToken);
   const accounts = getAccounts(accessToken, apiServer);
+
+  const balancesData = [];
   
   for (const account of accounts) {
     const balances = getBalances(accessToken, account.number, apiServer);
-    writeToSheet(BALANCES_SHEET_NAME, balances);
+    for (const balance of balances) {
+      balance.accountNumber = account.number; // Add account number to balance object
+      balancesData.push(balance);
+    }
   }
+
+  writeToSheet(BALANCES_SHEET_NAME, balancesData);
 }
 
 function getAccounts(accessToken, apiServer) {
@@ -78,19 +85,32 @@ function getAccounts(accessToken, apiServer) {
 }
 
 function getTransactions(accessToken, accountNumber, apiServer) {
-  // Set your desired date range for transactions.
-  const startDate = '2022-01-01';
-  const endDate = '2023-12-31';
+  const startDate = new Date('2022-01-01');
+  const endDate = new Date('2023-01-28');
   
-  const response = UrlFetchApp.fetch(apiServer + 'v1/accounts/' + accountNumber + '/transactions?startTime=' + startDate + '&endTime=' + endDate, {
-    headers: {
-      Authorization: 'Bearer ' + accessToken,
-    },
-  });
+  const oneDay = 24 * 60 * 60 * 1000;
+  const maxInterval = 31 * oneDay;
+  const allActivities = [];
   
-  const data = JSON.parse(response.getContentText());
-  return data.transactions;
+  for (let currentStart = startDate; currentStart < endDate; currentStart = new Date(currentStart.getTime() + maxInterval)) {
+    const currentEnd = new Date(Math.min(currentStart.getTime() + maxInterval, endDate.getTime()));
+    
+    const startTimeString = currentStart.toISOString();
+    const endTimeString = currentEnd.toISOString();
+    
+    const response = UrlFetchApp.fetch(apiServer + 'v1/accounts/' + accountNumber + '/activities?startTime=' + startTimeString + '&endTime=' + endTimeString, {
+      headers: {
+        Authorization: 'Bearer ' + accessToken,
+      },
+    });
+
+    const data = JSON.parse(response.getContentText());
+    allActivities.push(...data.activities);
+  }
+  
+  return allActivities;
 }
+
 
 function getBalances(accessToken, accountNumber, apiServer) {
   const response = UrlFetchApp.fetch(apiServer + 'v1/accounts/' + accountNumber + '/balances', {
@@ -104,6 +124,10 @@ function getBalances(accessToken, accountNumber, apiServer) {
 }
 
 function writeToSheet(sheetName, data) {
+  if (!data || data.length === 0) {
+    Logger.log('No data to write for sheet:', sheetName);
+    return;
+  }
   const sheet = getSheet(sheetName);
   sheet.clearContents();
 
