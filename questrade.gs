@@ -42,18 +42,6 @@ function getAccessToken(refreshToken) {
   return data.access_token;
 }
 
-function importTransactions() {
-  const refreshToken = PropertiesService.getScriptProperties().getProperty('refresh_token');
-  const apiServer = PropertiesService.getScriptProperties().getProperty('api_server');
-  const accessToken = getAccessToken(refreshToken);
-  const accounts = getAccounts(accessToken, apiServer);
-  
-  for (const account of accounts) {
-    const transactions = getTransactions(accessToken, account.number, apiServer);
-    writeToSheet(TRANSACTIONS_SHEET_NAME, transactions);
-  }
-}
-
 function updateBalances() {
   const refreshToken = PropertiesService.getScriptProperties().getProperty('refresh_token');
   const apiServer = PropertiesService.getScriptProperties().getProperty('api_server');
@@ -89,14 +77,14 @@ function getTransactions(accessToken, accountNumber, apiServer) {
   const endDate = new Date('2023-01-28');
   
   const oneDay = 24 * 60 * 60 * 1000;
-  const maxInterval = 31 * oneDay;
+  const maxInterval = 30 * oneDay;
   const allActivities = [];
   
   for (let currentStart = startDate; currentStart < endDate; currentStart = new Date(currentStart.getTime() + maxInterval)) {
     const currentEnd = new Date(Math.min(currentStart.getTime() + maxInterval, endDate.getTime()));
     
-    const startTimeString = currentStart.toISOString();
-    const endTimeString = currentEnd.toISOString();
+    const startTimeString = currentStart.toISOString().replace(/\.\d{3}Z/, 'Z');
+    const endTimeString = currentEnd.toISOString().replace(/\.\d{3}Z/, 'Z');
     
     const response = UrlFetchApp.fetch(apiServer + 'v1/accounts/' + accountNumber + '/activities?startTime=' + startTimeString + '&endTime=' + endTimeString, {
       headers: {
@@ -111,7 +99,6 @@ function getTransactions(accessToken, accountNumber, apiServer) {
   return allActivities;
 }
 
-
 function getBalances(accessToken, accountNumber, apiServer) {
   const response = UrlFetchApp.fetch(apiServer + 'v1/accounts/' + accountNumber + '/balances', {
     headers: {
@@ -123,17 +110,43 @@ function getBalances(accessToken, accountNumber, apiServer) {
   return data.perCurrencyBalances;
 }
 
-function writeToSheet(sheetName, data) {
+function importTransactions() {
+  const refreshToken = PropertiesService.getScriptProperties().getProperty('refresh_token');
+  const apiServer = PropertiesService.getScriptProperties().getProperty('api_server');
+  const accessToken = getAccessToken(refreshToken);
+  const accounts = getAccounts(accessToken, apiServer);
+  
+  // Clear the Transactions sheet before importing transactions for all accounts.
+  const sheet = getSheet(TRANSACTIONS_SHEET_NAME);
+  sheet.clearContents();
+  
+  for (const account of accounts) {
+    const transactions = getTransactions(accessToken, account.number, apiServer);
+    // Add the account number to each transaction.
+    transactions.forEach(transaction => transaction.accountNumber = account.number);
+    writeToSheet(TRANSACTIONS_SHEET_NAME, transactions, false);
+  }
+}
+
+function writeToSheet(sheetName, data, clearContents = true) {
   if (!data || data.length === 0) {
-    Logger.log('No data to write for sheet:', sheetName);
     return;
   }
+  
   const sheet = getSheet(sheetName);
-  sheet.clearContents();
-
+  
   // Assumes the first object in the data array represents the structure for all objects.
   const headers = Object.keys(data[0]);
-  sheet.appendRow(headers);
+  
+  // Add headers only if the sheet is empty.
+  if (sheet.getLastRow() === 0) {
+    // Clear the sheet's contents only if clearContents is true.
+    if (clearContents) {
+      sheet.clearContents();
+    }
+    
+    sheet.appendRow(headers);
+  }
   
   for (const item of data) {
     const row = [];
@@ -143,6 +156,10 @@ function writeToSheet(sheetName, data) {
     sheet.appendRow(row);
   }
 }
+
+
+
+
 
 function getSheet(sheetName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
