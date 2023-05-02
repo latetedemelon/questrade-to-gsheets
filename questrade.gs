@@ -1,17 +1,13 @@
 // Replace YOUR_API_KEY with your actual Questrade API key.
-const YOUR_INITIAL_TOKEN = 'f72uKYkU_R4AbE7lSUStp6EQA4pES0VU0';
+const YOUR_INITIAL_TOKEN = 'OcSYm8MZLj6dL_CZ9-aai6Hgwz4Dpv3g0';
 
 // Set the sheet names you want to use for storing transactions and balances.
 const TRANSACTIONS_SHEET_NAME = 'Transactions';
 const BALANCES_SHEET_NAME = 'Balances';
 
 function setup() {
-  const initialToken = 'YOUR_INITIAL_TOKEN';
-  const accessToken = getAccessToken(initialToken);
-  console.log('Access token:', accessToken);
-
-  // You can now use the access token to make API requests.
-  // Implement the rest of the functionality to import transactions and account balances.
+  const accessToken = getAccessToken(YOUR_INITIAL_TOKEN);
+  Logger.log('Access token:', accessToken);
 }
 
 function getAccessToken(refreshToken) {
@@ -46,20 +42,6 @@ function getAccessToken(refreshToken) {
   return data.access_token;
 }
 
-function setup() {
-  const initialToken = 'YOUR_INITIAL_TOKEN';
-  const accessToken = getAccessToken(initialToken);
-  Logger.log('Access token:', accessToken);
-
-  // You can now use the access token to make API requests.
-  // Implement the rest of the functionality to import transactions and account balances.
-}
-
-// Add the rest of your functions here.
-
-
-
-
 function importTransactions() {
   const refreshToken = PropertiesService.getScriptProperties().getProperty('refresh_token');
   const apiServer = PropertiesService.getScriptProperties().getProperty('api_server');
@@ -85,7 +67,7 @@ function updateBalances() {
 }
 
 function getAccounts(accessToken, apiServer) {
-  const response = UrlFetchApp.fetch(apiServer + '/v1/accounts', {
+  const response = UrlFetchApp.fetch(apiServer + 'v1/accounts', {
     headers: {
       Authorization: 'Bearer ' + accessToken,
     },
@@ -100,7 +82,7 @@ function getTransactions(accessToken, accountNumber, apiServer) {
   const startDate = '2022-01-01';
   const endDate = '2023-12-31';
   
-  const response = UrlFetchApp.fetch(`${apiServer}/v1/accounts/${accountNumber}/transactions?startTime=${startDate}&endTime=${endDate}`, {
+  const response = UrlFetchApp.fetch(apiServer + 'v1/accounts/' + accountNumber + '/transactions?startTime=' + startDate + '&endTime=' + endDate, {
     headers: {
       Authorization: 'Bearer ' + accessToken,
     },
@@ -111,7 +93,7 @@ function getTransactions(accessToken, accountNumber, apiServer) {
 }
 
 function getBalances(accessToken, accountNumber, apiServer) {
-  const response = UrlFetchApp.fetch(`${apiServer}/v1/accounts/${accountNumber}/balances`, {
+  const response = UrlFetchApp.fetch(apiServer + 'v1/accounts/' + accountNumber + '/balances', {
     headers: {
       Authorization: 'Bearer ' + accessToken,
     },
