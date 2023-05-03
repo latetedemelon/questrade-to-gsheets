@@ -1,5 +1,4 @@
-// Replace YOUR_API_KEY with your actual Questrade API key.
-const YOUR_INITIAL_TOKEN = 'OcSYm8MZLj6dL_CZ9-aai6Hgwz4Dpv3g0';
+const YOUR_INITIAL_TOKEN = 'your_initial_token_here';
 
 // Set the sheet names you want to use for storing transactions and balances.
 const TRANSACTIONS_SHEET_NAME = 'Transactions';
